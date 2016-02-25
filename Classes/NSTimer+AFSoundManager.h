@@ -10,8 +10,6 @@
 
 @interface NSTimer (AFSoundManager)
 
-@property NSNumber *timerPaused;
-
 +(id)scheduledTimerWithTimeInterval:(NSTimeInterval)inTimeInterval block:(void (^)())inBlock repeats:(BOOL)inRepeats;
 +(id)timerWithTimeInterval:(NSTimeInterval)inTimeInterval block:(void (^)())inBlock repeats:(BOOL)inRepeats;
 

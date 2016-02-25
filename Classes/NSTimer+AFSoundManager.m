@@ -9,6 +9,9 @@
 #import "NSTimer+AFSoundManager.h"
 #import <objc/runtime.h>
 
+static NSString *kIsPausedKey = @"IsPaused Key";
+static NSString *kRemainingTimeIntervalKey  = @"RemainingTimeInterval Key";
+
 @implementation NSTimer (AFSoundManager)
 
 +(id)scheduledTimerWithTimeInterval:(NSTimeInterval)inTimeInterval block:(void (^)())inBlock repeats:(BOOL)inRepeats {
@@ -35,38 +38,53 @@
     }
 }
 
-static NSString *const NSTimerPauseDate = @"NSTimerPauseDate";
-static NSString *const NSTimerPreviousFireDate = @"NSTimerPreviousFireDate";
+- (NSMutableDictionary *)pauseDictionary {
+    static NSMutableDictionary *globalDictionary = nil;
+    
+    if(!globalDictionary)
+        globalDictionary = [[NSMutableDictionary alloc] init];
+    
+    if(![globalDictionary objectForKey:[NSNumber numberWithInt:(int)self]]) {
+        NSMutableDictionary *localDictionary = [[NSMutableDictionary alloc] init];
+        [globalDictionary setObject:localDictionary forKey:[NSNumber numberWithInt:(int)self]];
+    }
+    
+    return [globalDictionary objectForKey:[NSNumber numberWithInt:(int)self]];
+}
 
 -(void)pauseTimer {
     NSLog(@"%s", __func__);
-    if (self.timerPaused != nil && ![self.timerPaused boolValue]) {
-        self.timerPaused = @(YES);
-        
-        objc_setAssociatedObject(self, (__bridge const void *)(NSTimerPauseDate), [NSDate date], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(self, (__bridge const void *)(NSTimerPreviousFireDate), self.fireDate, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        
-        self.fireDate = [NSDate distantFuture];
-    }
+    if(![self isValid])
+        return;
+    
+    NSNumber *isPausedNumber = [[self pauseDictionary] objectForKey:kIsPausedKey];
+    if(isPausedNumber && YES == [isPausedNumber boolValue])
+        return;
+    
+    NSDate *now = [NSDate date];
+    NSDate *then = [self fireDate];
+    NSTimeInterval remainingTimeInterval = [then timeIntervalSinceDate:now];
+    
+    [[self pauseDictionary] setObject:[NSNumber numberWithDouble:remainingTimeInterval] forKey:kRemainingTimeIntervalKey];
+    
+    [self setFireDate:[NSDate distantFuture]];
+    [[self pauseDictionary] setObject:[NSNumber numberWithBool:YES] forKey:kIsPausedKey];
 }
 
 -(void)resumeTimer {
     NSLog(@"%s", __func__);
-    if (self.timerPaused == nil || [self.timerPaused boolValue]) {
-        NSDate *pauseDate = objc_getAssociatedObject(self, (__bridge const void *)NSTimerPauseDate);
-        NSDate *previousFireDate = objc_getAssociatedObject(self, (__bridge const void *)NSTimerPreviousFireDate);
-        
-        const NSTimeInterval pauseTime = -[pauseDate timeIntervalSinceNow];
-        self.fireDate = [NSDate dateWithTimeInterval:pauseTime sinceDate:previousFireDate];
-    }
+    if(![self isValid])
+        return;
+    
+    NSNumber *isPausedNumber = [[self pauseDictionary] objectForKey:kIsPausedKey];
+    if(!isPausedNumber || NO == [isPausedNumber boolValue])
+        return;
+    
+    NSTimeInterval remainingTimeInterval = [[[self pauseDictionary] objectForKey:kRemainingTimeIntervalKey] doubleValue];
+    
+    NSDate *fireDate = [NSDate dateWithTimeIntervalSinceNow:remainingTimeInterval];
+    
+    [self setFireDate:fireDate];
+    [[self pauseDictionary] setObject:[NSNumber numberWithBool:NO] forKey:kIsPausedKey];
 }
-
-- (NSNumber *)timerPaused {
-    return objc_getAssociatedObject(self, @selector(timerPaused));
-}
-
-- (void)setTimerPaused:(NSNumber *)value {
-    objc_setAssociatedObject(self, @selector(timerPaused), value, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
-
 @end

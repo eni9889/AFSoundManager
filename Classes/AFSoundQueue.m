@@ -30,7 +30,6 @@
         if (items) {
             
             _items = [NSMutableArray arrayWithArray:items];
-            
             _queuePlayer = [[AFSoundPlayback alloc] initWithItem:items.firstObject];
             
             [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
@@ -50,8 +49,6 @@
     }
     
     _feedbackTimer = [NSTimer scheduledTimerWithTimeInterval:updateRate block:^{
-        NSLog(@"%s: %f", __func__, updateRate);
-        
         if (self.queuePlayer && self.queuePlayer.currentItem) {
             
             if (self.queuePlayer.currentItem.timePlayed > 0) {
@@ -82,6 +79,7 @@
         }
         
     } repeats:YES];
+    [_feedbackTimer pauseTimer];
 }
 
 -(void)addItem:(AFSoundItem *)item {
@@ -134,9 +132,9 @@
 }
 
 -(void)pause {
+    [_feedbackTimer pauseTimer];
     [_queuePlayer pause];
     [[MPRemoteCommandCenter sharedCommandCenter] pauseCommand];
-    [_feedbackTimer pauseTimer];
 }
 
 -(void)playNextItem {
